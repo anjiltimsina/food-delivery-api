@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import auth, users, restaurants, food_items, cart
+from app.routers import auth, users, restaurants, food_items, cart, food_items, reviews
 
 
 app = FastAPI(title="FoodDeliveryAPI")
@@ -9,7 +9,7 @@ app.include_router(users.router)
 app.include_router(restaurants.router)
 app.include_router(food_items.router)
 app.include_router(cart.router)
-
+app.include_router(reviews.router)
 
 @app.get("/")
 async def root():
