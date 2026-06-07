@@ -1,7 +1,8 @@
 from fastapi import APIRouter , Depends, Query
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.middleware.rate_limit_middleware import limiter
+from fastapi import Request
 from app.db.database import get_db
 from app.schemas.user import UserLogin , UserRegister , UserResponse , TokenResponse
 from app.services.auth_service import register_user , login_user , refresh_access_token
@@ -18,12 +19,14 @@ class RefreshRequest(BaseModel):
     refresh_token : str
 
 @router.post("/register", response_model = UserResponse, status_code= 201)
-async def register(data: UserRegister, db:AsyncSession= Depends(get_db)):
+@limiter.limit("5/minute")
+async def register(request :Request ,data: UserRegister, db:AsyncSession= Depends(get_db)):
     user = await register_user(data , db)
     return user
 
 @router.post("/login", response_model = TokenResponse)
-async def login (data: UserLogin , db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login (request :Request ,data: UserLogin , db: AsyncSession = Depends(get_db)):
     return await login_user(data, db)
 
 class RefreshRequest(BaseModel):

@@ -8,7 +8,7 @@ from app.services.cart_service import (
 )
 from app.core.dependencies import get_current_customer
 from app.models.user import User
-
+from app.utils.pagination import PaginationParams , paginate
 
 router = APIRouter(prefix ="/cart" , tags=["Cart"])
 
@@ -19,9 +19,9 @@ class UpdateQuantity(BaseModel):
 @router.get("/", response_model = CartResponse)
 async def view_cart(
                     db :AsyncSession = Depends(get_db),
-                    current_user : User = Depends(get_current_customer)
-):
-    return await get_cart(current_user , db)
+                    current_user : User = Depends(get_current_customer),):
+    return  await get_cart(current_user , db)
+  
 
 #customer -add item to cart
 
@@ -37,7 +37,7 @@ async def update_quantity( cart_item_id : int,
                           data : UpdateQuantity,
                           db: AsyncSession = Depends(get_db),
                           current_user = Depends(get_current_customer)):
-    return update_cart_item_quantity(cart_item_id , data.quantity ,  current_user , db)
+    return await update_cart_item_quantity(cart_item_id , data.quantity ,  current_user , db)
 
 
 # Customer - remove item from cart

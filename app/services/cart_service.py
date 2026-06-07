@@ -19,7 +19,7 @@ async def get_or_create_cart(user_id : id , db:AsyncSession):
 async def get_cart(current_user :User , db:AsyncSession):
     cart = await get_or_create_cart(current_user.id , db)
     result = await db.execute(select(CartItem).where(CartItem.cart_id == cart.id))
-    items = result.scalars.all()
+    items = result.scalars().all()
     total = sum(item.unit_price *item.quantity for item in items)
     return {
         "id" : cart.id,
@@ -39,7 +39,7 @@ async def add_item_to_cart(data:CartItemAdd , current_user:User , db:AsyncSessio
     if not food_item.is_available:
         raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST , detail = "Food item not available")
     
-    cart = await get_or_create_cart(current_user,id , db)
+    cart = await get_or_create_cart(current_user.id , db)
 
     #check if item is already placed in cart
 
@@ -55,12 +55,12 @@ async def add_item_to_cart(data:CartItemAdd , current_user:User , db:AsyncSessio
         return existing_item
     # add new item
     cart_item = CartItem(
-        cart_id = cart.id,
-        food_item = data.food_item_id,
-        quantity = data.quantity,
-        unit_price  = food_item.price
+    cart_id=cart.id,
+    food_item_id=food_item.id,  # ← use food_item.id not data.food_item_id
+    quantity=data.quantity,
+    unit_price=food_item.price
+)
 
-    )
     db.add(cart_item)
     await db.flush()
     return cart_item

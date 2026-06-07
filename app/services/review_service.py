@@ -10,7 +10,7 @@ from app.models.restaurant import Restaurant
 
 async def create_review(data : ReviewCreate , current_user : User , db: AsyncSession):
     #check order exists and belong to the user
-    result = await db.execute(select(Order).where(Order.id ==data.order-id))
+    result = await db.execute(select(Order).where(Order.id ==data.order_id))
     order = result.scalar_one_or_none()
 
     if not order:
@@ -58,7 +58,7 @@ async def create_review(data : ReviewCreate , current_user : User , db: AsyncSes
     new_avg = total_rating/(len(all_reviews)+1)
 
     result = await db.execute(
-        select(Restaurant).where(Restaurant.id == data.restaurant)
+        select(Restaurant).where(Restaurant.id == data.restaurant_id)
     )
     restaurant = result.scalar_one_or_none()
     if restaurant:
@@ -67,7 +67,7 @@ async def create_review(data : ReviewCreate , current_user : User , db: AsyncSes
     return review
 
 async def get_restaurant_reviews(restaurant_id : int , db:AsyncSession):
-    result = await db.execute(select(Review).where(Review.restaurant_if ==restaurant_id))
+    result = await db.execute(select(Review).where(Review.restaurant_id ==restaurant_id))
     return result.scalars().all()
 
 async def get_my_reviews(current_user : User , db:AsyncSession):

@@ -7,12 +7,17 @@ from app.services .food_item_service import(create_food_item , get_food_items_by
 from app.core.dependencies import get_current_restaurant_owner, get_current_user
 from app.models.user import User
 
+from app.utils.pagination import PaginationParams , paginate
+from app.schemas.pagination import PaginatedResponse
+
 router = APIRouter(prefix ="/restaurants", tags=["Food Items"])
 
 #Public - get all food item of a restaurant
-@router.get("/{restaurant_id}/foods" , response_model = List[FoodItemResponse])
-async def list_food_items(restaurant_id : int , db:AsyncSession= Depends(get_db)):
-    return await get_food_items_by_restaurant(restaurant_id , db)
+#Public - paginate food items
+@router.get("/{restaurant_id}/foods" , response_model = PaginatedResponse[FoodItemResponse])
+async def list_food_items(restaurant_id : int , db:AsyncSession= Depends(get_db), pagination :PaginationParams = Depends()):
+    food_items = await get_food_items_by_restaurant(restaurant_id , db)
+    return paginate(food_items , pagination)
 
 #yo pani public nai ho
 @router.get("{restaurant_id}/foods/{food_item_id}", response_model = FoodItemResponse)

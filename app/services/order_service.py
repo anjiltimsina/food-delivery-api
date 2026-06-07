@@ -17,7 +17,7 @@ async def place_order(data : OrderCreate , current_user : User , db:AsyncSession
         raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST , detail = "Cart is empty")
     
     # Aba cart xa bhanne verify bho now we need to take out the cart items 
-    result = await db.execute(select(CartItem). where(CartItem.id == cart.id))
+    result = await db.execute(select(CartItem). where(CartItem.cart_id == cart.id))
     cart_items = result.scalars().all()
 
     if not cart_items:
@@ -63,7 +63,7 @@ async def place_order(data : OrderCreate , current_user : User , db:AsyncSession
     for cart_item in cart_items:
         order_item = OrderItem(
             order_id = order.id,
-            food_items_id = cart_item.food_item_id,
+            food_item_id = cart_item.food_item_id,
             quantity = cart_item.quantity,
             unit_price = cart_item.unit_price)
         
@@ -73,11 +73,60 @@ async def place_order(data : OrderCreate , current_user : User , db:AsyncSession
     for cart_item in cart_items:
         await db.delete(cart_item)
     await db.flush()
-    return order
+    result = await db.execute(
+        select(OrderItem).where(OrderItem.order_id == order.id)
+    )
+    order_items = result.scalars().all()
+    return {
+        "id": order.id,
+        "user_id": order.user_id,
+        "restaurant_id": order.restaurant_id,
+        "status": order.status,
+        "payment_status": order.payment_status,
+        "total_amount": order.total_amount,
+        "delivery_address": order.delivery_address,
+        "notes": order.notes,
+        "items": [
+            {
+                "id": item.id,
+                "food_item_id": item.food_item_id,
+                "quantity": item.quantity,
+                "unit_price": item.unit_price
+            }
+            for item in order_items
+        ]
+    }
 
 async def get_my_orders(current_user : User , db: AsyncSession):
     result = await db.execute(select(Order).where(Order.user_id == current_user.id))
-    return result.scalars.all()
+    orders = result.scalars().all()
+    order_list = []
+    for order in orders:
+        result = await db.execute(
+            select(OrderItem).where(OrderItem.order_id == order.id)
+        )
+        items = result.scalars().all()
+        order_list.append({
+            "id": order.id,
+            "user_id": order.user_id,
+            "restaurant_id": order.restaurant_id,
+            "status": order.status,
+            "payment_status": order.payment_status,
+            "total_amount": order.total_amount,
+            "delivery_address": order.delivery_address,
+            "notes": order.notes,
+            "items": [
+                {
+                    "id": item.id,
+                    "food_item_id": item.food_item_id,
+                    "quantity": item.quantity,
+                    "unit_price": item.unit_price
+                }
+                for item in items
+            ]
+        })
+    return order_list
+
 
 async def get_order_by_id(order_id : int, current_user : User , db:AsyncSession ):
     result = await db.execute(select(Order).where(Order.id== order_id))
@@ -89,11 +138,53 @@ async def get_order_by_id(order_id : int, current_user : User , db:AsyncSession 
 #only admin or order owner can view
     if current_user.role != UserRole.ADMIN and order.user_id != current_user.id:
         raise HTTPException(status_code = status.HTTP_403_FORBIDDEN , detail ="Not allowed")
-    return order
+    result = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
+    items = result.scalars().all()
+
+    return {
+        "id": order.id,
+        "user_id": order.user_id,
+        "restaurant_id": order.restaurant_id,
+        "status": order.status,
+        "payment_status": order.payment_status,
+        "total_amount": order.total_amount,
+        "delivery_address": order.delivery_address,
+        "notes": order.notes,
+        "items": [
+            {"id": i.id, "food_item_id": i.food_item_id, "quantity": i.quantity, "unit_price": i.unit_price}
+            for i in items
+        ]
+    }
 
 async def get_all_orders_admin(db:AsyncSession):
     result = await db.execute(select(Order))
-    return result.scalars().all()
+    orders = result.scalars().all()
+    order_list = []
+    for order in orders:
+        result = await db.execute(
+            select(OrderItem).where(OrderItem.order_id == order.id)
+        )
+        items = result.scalars().all()
+        order_list.append({
+            "id": order.id,
+            "user_id": order.user_id,
+            "restaurant_id": order.restaurant_id,
+            "status": order.status,
+            "payment_status": order.payment_status,
+            "total_amount": order.total_amount,
+            "delivery_address": order.delivery_address,
+            "notes": order.notes,
+            "items": [
+                {
+                    "id": item.id,
+                    "food_item_id": item.food_item_id,
+                    "quantity": item.quantity,
+                    "unit_price": item.unit_price
+                }
+                for item in items
+            ]
+        })
+    return order_list
 
 async def get_restaurant_orders(restaurant_id: int , current_user:User , db: AsyncSession):
     result = await db.execute(select(Restaurant).where(Restaurant.id == restaurant_id))
@@ -110,7 +201,26 @@ async def get_restaurant_orders(restaurant_id: int , current_user:User , db: Asy
         select(Order).where(Order.restaurant_id == restaurant_id)
     )
 
-    return result.scalars().all()
+    orders =  result.scalars().all()
+    order_list = []
+    for order in orders:
+        result = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
+        items = result.scalars().all()
+        order_list.append({
+            "id": order.id,
+            "user_id": order.user_id,
+            "restaurant_id": order.restaurant_id,
+            "status": order.status,
+            "payment_status": order.payment_status,
+            "total_amount": order.total_amount,
+            "delivery_address": order.delivery_address,
+            "notes": order.notes,
+            "items": [
+                {"id": i.id, "food_item_id": i.food_item_id, "quantity": i.quantity, "unit_price": i.unit_price}
+                for i in items
+            ]
+        })
+    return order_list
 
 async def update_order_status(order_id : int , data : OrderStatusUpdate , current_user: User , db:AsyncSession):
     result = await db.execute(select(Order).where(Order.id == order_id))
@@ -121,13 +231,33 @@ async def update_order_status(order_id : int , data : OrderStatusUpdate , curren
     
     #only admin or restaurant owner can update status
     if current_user.role != UserRole.ADMIN:
-        result = await db.execute(select(Restaurant).where(Restaurant.id ==order.restaurant ))
+        result = await db.execute(select(Restaurant).where(Restaurant.id ==order.restaurant_id))
         restaurant = result.scalar_one_or_none()
         if not restaurant or restaurant.owner_id != current_user.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN , detail ="Not allowed")
     
     order.status = data.status
-    return order
+    await db.commit()          #  persist the change
+    await db.refresh(order)    # refresh state
+
+    # Return a dict to avoid lazy-load serialization issues
+    result = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
+    items = result.scalars().all()
+
+    return {
+        "id": order.id,
+        "user_id": order.user_id,
+        "restaurant_id": order.restaurant_id,
+        "status": order.status,
+        "payment_status": order.payment_status,
+        "total_amount": order.total_amount,
+        "delivery_address": order.delivery_address,
+        "notes": order.notes,
+        "items": [
+            {"id": i.id, "food_item_id": i.food_item_id, "quantity": i.quantity, "unit_price": i.unit_price}
+            for i in items
+        ]
+    }
 
 async def cancel_order(order_id : int , current_user : User , db:AsyncSession):
     result = await db.execute(select(Order).where(Order.id == order_id))
@@ -146,7 +276,7 @@ async def cancel_order(order_id : int , current_user : User , db:AsyncSession):
         )
         
     order.status = OrderStatus.CANCELLED
-    return {"message", "Order cancelled successfully"}
+    return {"message": "Order cancelled successfully"}
 
 
 

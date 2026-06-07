@@ -8,21 +8,26 @@ from app.services.review_service import(
 )
 from app.core.dependencies import get_current_customer, get_current_user
 from app.models.user import User
+from app.utils.pagination  import PaginationParams , paginate
+from app.schemas.pagination import PaginatedResponse
 
 router = APIRouter(prefix="/reviews", tags =["Reviews"])
 
 #Public - get all reviews for a restaurant
-@router.get("/restaurant/{restaurant_id}", response_model = List[ReviewResponse])
-async def restuarant_reviews(restaurant_id : int , db:AsyncSession = Depends(get_db)):
-    return await get_restaurant_reviews(restaurant_id , db)
+@router.get("/restaurant/{restaurant_id}", response_model = PaginatedResponse[ReviewResponse])
+async def restuarant_reviews(restaurant_id : int , db:AsyncSession = Depends(get_db), pagination: PaginationParams = Depends()):
+    reviews = await get_restaurant_reviews(restaurant_id , db)
+    return paginate(reviews , pagination)
 
 #customer -get my reviews
-@router.get("/my", response_model =List[ReviewResponse])
+@router.get("/my", response_model =PaginatedResponse[ReviewResponse])
 async def my_reviews(
     db:AsyncSession = Depends(get_db),
-    current_user : User = Depends(get_current_customer)
+    current_user : User = Depends(get_current_customer),
+    pagination : PaginationParams = Depends()
 ):
-    return await get_my_reviews(current_user , db)
+    reviews = await get_my_reviews(current_user , db)
+    return paginate(reviews , pagination)
 
 #customer-create review (only for delivered orders)
 @router.post("/", response_model = ReviewResponse, status_code = 201)

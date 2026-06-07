@@ -67,11 +67,12 @@ async def update_restaurant(restaurant_id : int , data: RestaurantUpdate, curren
 async def approve_restaurant(restaurant_id : int , db:AsyncSession):
     restaurant = await get_restaurant_by_id(restaurant_id , db)
     restaurant.is_approved = True
+    restaurant.is_active = True
     return {"message": f"Restaurant {restaurant.name} approved"}
 
 async def delete_restaurant( restaurant_id : int ,current_user: User , db:AsyncSession ):
     restaurant = await get_restaurant_by_id(restaurant_id , db)
-    if current_user != User.ADMIN and restaurant.owner_id != current_user.id:
+    if current_user.role != UserRole.ADMIN and restaurant.owner_id != current_user.id:
         raise HTTPException(status_code = status.HTTP_403_FORBIDDEN , detail = "Not allowed")
     
     await db.delete(restaurant)

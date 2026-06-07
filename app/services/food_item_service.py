@@ -19,7 +19,7 @@ async def create_food_item(restaurant_id : int , data : FoodItemCreate , current
 
     restaurant = await get_restaurant_or_404(restaurant_id , db)
     
-    if current_user != UserRole.ADMIN and restaurant.owner_id != current_user.id:
+    if current_user.role != UserRole.ADMIN and restaurant.owner_id != current_user.id:
         raise HTTPException(status_code= status.HTTP_403_FORBIDDEN , detail = "Not allowed")
     
     food_item = FoodItem(
@@ -37,10 +37,10 @@ async def create_food_item(restaurant_id : int , data : FoodItemCreate , current
 async def get_food_items_by_restaurant(restaurant_id : int , db:AsyncSession):
     await get_restaurant_or_404(restaurant_id , db)
     result = await db.execute(
-        select(FoodItem).Where(
+        select(FoodItem).where(
             FoodItem.restaurant_id == restaurant_id,
             FoodItem.is_available == True))
-    return result.scalars.all()
+    return result.scalars().all()
 
 async def get_food_item_by_id(food_item_id:int , db:AsyncSession):
     result = await db.execute(select(FoodItem).where(FoodItem.id == food_item_id))
@@ -75,7 +75,7 @@ async def update_food_item(food_item_id :int , data: FoodItemUpdate, current_use
 
 async def delete_food_item(food_item_id : int , current_user :User , db:AsyncSession):
 
-    food_item = await get_food_item_by_id(food_item , id)
+    food_item = await get_food_item_by_id(food_item_id, db)
     restaurant = await get_restaurant_or_404(food_item.restaurant_id , db)
     
     if current_user.role != UserRole.ADMIN and restaurant.owner_id != current_user.id:

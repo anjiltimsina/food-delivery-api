@@ -1,7 +1,6 @@
 from fastapi import APIRouter , Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
-
 from app.db.database import get_db
 from app.schemas.restaurant  import RestaurantCreate , RestaurantUpdate , RestaurantResponse
 from app.services.restaurant_service import(
@@ -13,18 +12,27 @@ from app.core.dependencies import (
 
 from app.models import User
 
+from app.utils.pagination import PaginationParams , paginate
+from app.schemas.pagination import PaginatedResponse
+
 router = APIRouter(prefix= "/restaurants", tags =["Restaurants"])
 
-#Public - anyone can see approved restaurants
-@router.get("/" , response_model = List[RestaurantResponse])
-async def list_restaurants(db: AsyncSession = Depends(get_db)):
-    return await get_all_restaurants(db)
+#Public - anyone can see  all approved restaurants
+# so added pagination here
+@router.get("/" , response_model = PaginatedResponse[RestaurantResponse])
+async def list_restaurants(db: AsyncSession = Depends(get_db),
+                           pagination : PaginationParams = Depends()):
+    restaurants =  await get_all_restaurants(db)
+    return paginate(restaurants , pagination)
 
 #Only admin can see incluing unapprove and inactive
-@router.get("/admin/all", response_model = List[RestaurantResponse])
+# Added pagination here
+@router.get("/admin/all", response_model = PaginatedResponse[RestaurantResponse])
 async def list_all_restaurants_admin(db: AsyncSession = Depends(get_db),
-                                     current_user: User = Depends(get_current_admin)):
-    return await get_all_restaurants_admin(db)
+                                     current_user: User = Depends(get_current_admin),
+                                     pagination : PaginationParams = Depends()):
+    restaurants = await get_all_restaurants_admin(db)
+    return paginate(restaurants , pagination)
 
 #pulic - all can see by id
 @router.get("/{restaurant_id}", response_model = RestaurantResponse)
@@ -47,14 +55,14 @@ async def update(restaurant_id : int ,
     return await update_restaurant(restaurant_id , data , current_user , db)
 
 #only admin can approve restaurants
-@router.patch("/{restaurant_id}/approve")
+@router.patch("/{restaurant_id}/approve", response_model =None)
 async def approve(restaurant_id : int ,
                   db:AsyncSession = Depends(get_db),
                   current_user: User = Depends(get_current_user)):
-    return await approve_restaurant(restaurant_id , current_user, db)
+    return await approve_restaurant(restaurant_id , db)
 
 #only admin or user can delete the restaurant
-@router.delete("/{restaurant_id}")
+@router.delete("/{restaurant_id}", response_model =None)
 async def delete(
     restaurant_id : int,
     db:AsyncSession = Depends(get_db),

@@ -18,7 +18,7 @@ class FoodItemCreate(BaseModel):
 class FoodItemUpdate(BaseModel):
     name :Optional[str] = None
     description:Optional[str] = None
-    price : Optional[str] = None
+    price : Optional[float] = None
     category : Optional[str] = None
     is_available: Optional[bool] = None
 
