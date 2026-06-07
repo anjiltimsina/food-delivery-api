@@ -1,7 +1,6 @@
-from fastapi import APIRouter , Depends
+from fastapi import APIRouter , Depends, UploadFile , File
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
-
 from app.db.database import get_db
 from app.schemas.user import UserResponse, UserUpdate
 from app.services.user_service import(
@@ -12,6 +11,8 @@ from app.core.dependencies import  get_current_user, get_current_admin
 from app.models.user import User
 from app.utils.pagination import PaginationParams , paginate
 from app.schemas.pagination import PaginatedResponse
+from app.utils.upload import save_upload_files , delete_upload_file
+
 
 router = APIRouter(prefix ="/users", tags = ["Users"])
 
@@ -58,4 +59,20 @@ async def deactivate(user_id : int,
                    db: AsyncSession = Depends(get_db),
                    current_user : User = Depends(get_current_admin)):
     return await activate_user(user_id , db)
+
+
+#upload profile image 
+@router.post("/me/upload-image" , response_model = UserResponse)
+async def upload_profile_image(file :UploadFile = File(...) , db:AsyncSession= Depends(get_db) , current_user :User = Depends(get_current_user) ):
+    #delete old image if exists
+    if current_user.profile_image and current_user.profile_image.startswith("/uploads"):
+        await delete_upload_file(current_user.profile_image)
+
+        #save new image
+    image_url = await save_upload_files(file , "profiles")
+    current_user.profile_image = image_url
+
+    await db.flush()
+    return current_user
+    
 

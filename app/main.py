@@ -3,12 +3,20 @@ from app.routers import auth, users, restaurants, food_items, cart, food_items, 
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi.errors import RateLimitExceeded
-
+import os
 from app.middleware.logging_middleware import log_requests
 from app.middleware.auth_middleware import auth_middleware
 from app.middleware.rate_limit_middleware import Limiter, rate_limiter_exceeded_handler 
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="FoodDeliveryAPI")
+
+#serve the uploaded files as static
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads" , StaticFiles(directory= "uploads") , name ="uploads")
+# Fastapi knows about the route only but not folder named exists.
+# Whenever someone requests /uploads/..., look inside the local uploads/ folder and serve that file.
+
 
 #Rate Limiter setup
 app.state.limiter = Limiter

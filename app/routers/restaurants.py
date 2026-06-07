@@ -1,4 +1,4 @@
-from fastapi import APIRouter , Depends
+from fastapi import APIRouter , Depends, HTTPException , status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from app.db.database import get_db
@@ -10,10 +10,13 @@ from app.core.dependencies import (
     get_current_admin , get_current_user , get_current_restaurant_owner
 )
 
-from app.models import User
+from app.models import User , UserRole
 
 from app.utils.pagination import PaginationParams , paginate
 from app.schemas.pagination import PaginatedResponse
+from fastapi import UploadFile , File
+from app.utils.upload import save_upload_files , delete_upload_file 
+
 
 router = APIRouter(prefix= "/restaurants", tags =["Restaurants"])
 
@@ -71,5 +74,29 @@ async def delete(
     return await delete_restaurant(restaurant_id , current_user , db)
 
 
+# Upload Restaurant image
+@router.post("/{restaurant_id}/upload-image" , response_model = RestaurantResponse)
+async def upload_restaurant_image(
+    restaurant_id : int,
+    file : UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user : User = Depends(get_current_user)
+):
+    restaurant = await get_restaurant_by_id(restaurant_id , db)
+
+    #only owner or admin 
+    if current_user.role != UserRole.ADMIN and restaurant.owner_id != current_user.id:
+        raise HTTPException(
+            status = status.HTTP_403_FORBIDDEN,
+            detail = "Not allowed"
+        )
     
+    #delete old image 
+    if restaurant.image and restaurant.image.startswith("uploads"):
+        await delete_upload_file(restaurant.image)
+    
+    #save new image
+    image_url = await save_upload_files(file ,"restaurants")
+    restaurant.image = image_url 
+    return restaurant 
 

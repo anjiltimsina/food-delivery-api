@@ -1,9 +1,18 @@
 # Environment
 .env
+.env.docker
+
+# Python
 venv/
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+*.pyc
+.Python
+
+# Uploads (local files)
+uploads/
 
 # Database
 *.db
@@ -12,6 +21,15 @@ __pycache__/
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# Migrations versions (optional - some keep this)
-# migrations/versions/
+# Docker
+.dockerignore
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
