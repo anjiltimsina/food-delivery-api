@@ -5,7 +5,9 @@ from fastapi import HTTPException , status
 from app.models.user import  User
 from app.schemas.user import UserRegister , UserLogin , TokenResponse
 from app.core.security import hash_password , verify_password , create_access_token, create_refresh_token , decode_token
-
+from app.utils.email import (
+    send_verification_email , send_password_reset_email, create_verification_token, create_password_reset_token
+)
 
 async def register_user(data: UserRegister , db:AsyncSession)->User:
     #Check if email already exists
@@ -24,11 +26,16 @@ async def register_user(data: UserRegister , db:AsyncSession)->User:
         email = data.email,
         phone = data.phone,
         hashed_password = hash_password(data.password),
-        role = data.role
+        role = data.role,
+        is_verified = False # not verfied yet will be verified ] when we know user has its own email access
     )
 
     db.add(user)
     await db.flush()
+
+    #send verification email 
+    token = create_verification_token(user.email)
+    await send_verification_email(user.email , user.full_name , token)
     return user
 
 async def login_user(data: UserLogin , db: AsyncSession) ->TokenResponse:
@@ -80,3 +87,63 @@ async def refresh_access_token(refresh_token : str,db:AsyncSession)->TokenRespon
     )
 
 #async def refresh_access_token(...) is used when the access token has expired but the refresh token is still valid
+
+
+async def verify_email(token : str , db:AsyncSession):
+    payload= decode_token(token)
+    if not payload or payload.get("type") != "verification":
+        raise HTTPException(
+            status_code= status.HTTP_400_BAD_REQUEST,
+            detail = "Invalid or expired verification token"
+        )
+    
+    email = payload.get("sub")
+    result = await db.execute(select(User).where(User.email == email))
+    user =result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code= status.HTTP_404_NOT_FOUND,
+            detail= "User not found"
+        )
+    if user.is_verified:
+        return {"message": "Email already verified ! You can login"}
+    user.is_verified = True
+    return {"message": "Email verified successfully ! You can login. "}
+
+
+async def forgot_password(email : str , db: AsyncSession):
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+ # don't reveal if email exists — security best practice
+    if not user :
+        return {"message" :"If this email exists, a reset link has been sent"}
+    token = create_password_reset_token(user.email)
+    await send_password_reset_email(user.email , user.full_name , token)
+    return {"message" : "If this email exists, a reset link has been sent"}
+
+
+async def reset_password(token : str , new_password : str , db: AsyncSession):
+    payload = decode_token(token)
+    if not payload or payload.get("type") !="password_reset":
+        raise HTTPException(
+            status_code= status.HTTP_400_BAD_REQUEST,
+            detail = "Invalid or expired reset token"
+        )
+    
+    email = payload.get("sub")
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code= status.HTTP_404_NOT_FOUND,
+            detail = "User not found"
+        )
+    if len(new_password)<8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail = "Password must be at least 8 characters"
+        )
+    user.hashed_password=hash_password(new_password)
+    return {"message" : "Password reset successfully! You can now login"}

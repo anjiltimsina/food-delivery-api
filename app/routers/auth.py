@@ -5,7 +5,7 @@ from app.middleware.rate_limit_middleware import limiter
 from fastapi import Request
 from app.db.database import get_db
 from app.schemas.user import UserLogin , UserRegister , UserResponse , TokenResponse
-from app.services.auth_service import register_user , login_user , refresh_access_token
+from app.services.auth_service import register_user , login_user , refresh_access_token, verify_email , forgot_password , reset_password
 from app.core.dependencies import get_current_user
 from app.models.user import User
 from pydantic import BaseModel, EmailStr
@@ -17,6 +17,14 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 class RefreshRequest(BaseModel):
     refresh_token : str
+
+class ForgotPasswordRequest(BaseModel):
+    email : EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password : str
+
 
 @router.post("/register", response_model = UserResponse, status_code= 201)
 @limiter.limit("5/minute")
@@ -56,4 +64,24 @@ async def google_callback(
     return await google_login_or_register(code , db)
 
 
+#Google email verification code
+@router.get("/verify-email" , response_model = None)
+async def verify(token:str =  Query(...),
+#token: str = Query(...) means token comes from URL like ?token=xxx — no body needed.
+                 db : AsyncSession= Depends(get_db)):
+    return await verify_email(token , db)
 
+#Reset password
+@router.post("/reset-password" , response_model = None)
+async def reset(
+    data: ResetPasswordRequest , 
+    db: AsyncSession = Depends(get_db)
+):
+    return await reset_password(data.token , data.new_password , db)
+
+@router.post("/forgot-password", response_model=None)
+async def forgot(
+    data: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    return await forgot_password(data.email, db)
