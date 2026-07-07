@@ -27,7 +27,7 @@ def create_password_reset_token(email : str)->str:
     )
 
 async def send_verification_email(email : str , full_name : str , token : str):
-    verification_url = f"http://localhost:8001/auth/verify-email?token={token}"
+    verification_url = f"{settings.BASE_URL}/auth/verify-email?token={token}"
     html_content = f"""
     <html>
         <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">

@@ -1,60 +1,46 @@
-import os
 import uuid
-import aiofiles
+import cloudinary
+import cloudinary.uploader
+from fastapi import UploadFile, HTTPException, status
+from app.core.config import settings  # adjust import to however you load env vars
 
-#aiofiles allows: non-blocking file operations
-#User A upload file: server keeps handling User B, C, D simultaneously
+cloudinary.config(
+    cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+    api_key=settings.CLOUDINARY_API_KEY,
+    api_secret=settings.CLOUDINARY_API_SECRET,
+    secure=True
+)
 
-from fastapi import UploadFile , HTTPException , status
+ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
-#folders where the uploads will be saved
-UPLOAD_DIR = "uploads"
-
-#aloowed file types
-ALLOWED_TYPES = ["image/jpeg" , "image/jpg" , "image/png", "image/webo"]
-
-#Max file size 5 MB
-MAX_FILE_SIZE = 5*1024 * 1024
-
-async def save_upload_files(file:UploadFile , folder:str) ->str:
-    #Check file type
+async def save_upload_files(file: UploadFile, folder: str) -> str:
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail= f"file type not allowed. Allowed types : jpeg , jpg , webp , png")
-    
-    #read file content
+            detail="File type not allowed. Allowed types: jpeg, jpg, webp, png"
+        )
+
     content = await file.read()
 
-    #check file size
-    if len(content) >MAX_FILE_SIZE:
+    if len(content) > MAX_FILE_SIZE:
         raise HTTPException(
-            status_code= status.HTTP_400_BAD_REQUEST,
-            detail = "File size too large. Maximum size is 5MB"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File size too large. Maximum size is 5MB"
         )
-    
-    #create folder if not exists
-    upload_path = os.path.join(UPLOAD_DIR , folder)
-    os.makedirs(upload_path , exist_ok= True)
 
-    #generate unique filename
-    extension = file.filename.split(".")[-1] # paxadi ko file type extaract garya jp , jpeg 
-    filename = f"{uuid.uuid4()}.{extension}"
-    file_path = os.path.join(upload_path, filename)
+    public_id = f"{folder}/{uuid.uuid4()}"
 
-    #save file
-    async with aiofiles.open(file_path , "wb") as f:
-        await f.write(content)
-    
-    #return the url path 
-    return f"/{UPLOAD_DIR}/{folder}/{filename}"
+    result = cloudinary.uploader.upload(
+        content,
+        public_id=public_id,
+        folder="food_delivery",  # top-level folder in your Cloudinary account
+        resource_type="image"
+    )
 
-async def delete_upload_file(file_path :str):
-    #removet leading slash
-    path = file_path.lstrip("/")
-    if os.path.exists(path):
-        os.remove(path)
+    # This is now a full CDN URL — store this directly in your DB
+    return result["secure_url"]
 
 
-
-
+async def delete_upload_file(public_id: str):
+    cloudinary.uploader.destroy(public_id, resource_type="image")

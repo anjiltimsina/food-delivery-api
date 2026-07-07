@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str =""
     GOOGLE_REDIRECT_URI :str = "http://localhost:8001/auth/google/callback"
 #Email 
+    BASE_URL: str
     MAIL_USERNAME : str  =""
     MAIL_PASSWORD : str = ""
     MAIL_FROM : str = ""
@@ -28,9 +29,10 @@ class Settings(BaseSettings):
 #TLS is used with port 587
     MAIL_SSL : bool = False
 
-#Stripe integration 
-    STRIPE_SECRET_KEY : str = ""
-    STRIPE_PUBLISHABLE_KEY : str = ""
+    # --- Add these three ---
+    CLOUDINARY_CLOUD_NAME: str
+    CLOUDINARY_API_KEY: str
+    CLOUDINARY_API_SECRET: str
 
     class Config:
         env_file =".env" # yo file location ho jaha bata yo settings haru read garne ho
