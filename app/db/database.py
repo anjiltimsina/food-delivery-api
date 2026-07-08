@@ -9,6 +9,8 @@ engine = create_async_engine(
     echo = settings.DEBUG, # echo true bhane sql queries haru console ma print huncha
     pool_size =10, # pool_size le connection pool ma kati connections rakhne ho bhanne ho
     max_overflow =20, # max_overflow le pool_size bhanda badhi kati connections create garna milcha bhanne ho
+    pool_pre_ping=True,   # test each connection before use; auto-reconnects if Neon closed it
+    pool_recycle=300,     # proactively recycle connections every 5 minutes
 )
 # so 30 connections samma use garnu milyo
 
