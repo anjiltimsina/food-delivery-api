@@ -1,32 +1,44 @@
-from fastapi_mail import FastMail , MessageSchema , ConnectionConfig, MessageType
+import httpx
 from app.core.config import settings
 from app.core.security import create_access_token
 from datetime import timedelta
 
-conf = ConnectionConfig(
-    MAIL_USERNAME=settings.MAIL_USERNAME,
-    MAIL_PASSWORD=settings.MAIL_PASSWORD,
-    MAIL_FROM=settings.MAIL_FROM,
-    MAIL_PORT=settings.MAIL_PORT,
-    MAIL_SERVER=settings.MAIL_SERVER,
-    MAIL_STARTTLS=settings.MAIL_TLS,
-    MAIL_SSL_TLS=settings.MAIL_SSL,
-    USE_CREDENTIALS=True
-)
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
-def create_verification_token(email:str)->str:
+
+def create_verification_token(email: str) -> str:
     return create_access_token(
-        data ={"sub" : email , "type": "verification"},
-        expires_delta = timedelta(hours= 24)
+        data={"sub": email, "type": "verification"},
+        expires_delta=timedelta(hours=24)
     )
 
-def create_password_reset_token(email : str)->str:
+
+def create_password_reset_token(email: str) -> str:
     return create_access_token(
-        data={"sub" : email , "type": "password_reset"},
-        expires_delta = timedelta(hours=1)
+        data={"sub": email, "type": "password_reset"},
+        expires_delta=timedelta(hours=1)
     )
 
-async def send_verification_email(email : str , full_name : str , token : str):
+
+async def _send_via_brevo(to_email: str, to_name: str, subject: str, html_content: str):
+    headers = {
+        "accept": "application/json",
+        "api-key": settings.BREVO_API_KEY,
+        "content-type": "application/json",
+    }
+    payload = {
+        "sender": {"name": "FoodDeliveryAPI", "email": settings.MAIL_FROM},
+        "to": [{"email": to_email, "name": to_name}],
+        "subject": subject,
+        "htmlContent": html_content,
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(BREVO_API_URL, json=payload, headers=headers, timeout=10.0)
+        response.raise_for_status()
+
+
+async def send_verification_email(email: str, full_name: str, token: str):
     verification_url = f"{settings.BASE_URL}/auth/verify-email?token={token}"
     html_content = f"""
     <html>
@@ -50,17 +62,10 @@ async def send_verification_email(email : str , full_name : str , token : str):
         </body>
     </html>
     """
-    message = MessageSchema(
-        subject="Verify your FoodDeliveryAPI email ✅",
-        recipients=[email],
-        body=html_content,
-        subtype=MessageType.html
-    )
+    await _send_via_brevo(email, full_name, "Verify your FoodDeliveryAPI email ✅", html_content)
 
-    fm = FastMail(conf)
-    await fm.send_message(message)
+
 async def send_password_reset_email(email: str, full_name: str, token: str):
-    # We just show the token — user copies it and uses in Swagger
     html_content = f"""
     <html>
         <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -83,13 +88,4 @@ async def send_password_reset_email(email: str, full_name: str, token: str):
         </body>
     </html>
     """
-
-    message = MessageSchema(
-        subject="Reset your FoodDeliveryAPI password 🔐",
-        recipients=[email],
-        body=html_content,
-        subtype=MessageType.html
-    )
-
-    fm = FastMail(conf)
-    await fm.send_message(message)
+    await _send_via_brevo(email, full_name, "Reset your FoodDeliveryAPI password 🔐", html_content)
