@@ -42,11 +42,18 @@ async def get_food_items_by_restaurant(restaurant_id : int , db:AsyncSession):
             FoodItem.is_available == True))
     return result.scalars().all()
 
-async def get_food_item_by_id(food_item_id:int , db:AsyncSession):
+async def get_food_item_by_id(food_item_id: int, db: AsyncSession):
     result = await db.execute(select(FoodItem).where(FoodItem.id == food_item_id))
     food_item = result.scalar_one_or_none()
     if not food_item:
-        raise HTTPException(status_code = status.HTTP_404_NOT_FOUND , detail = "Food item not found ")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Food item not found")
+
+    # Ensure the parent restaurant is approved and active before exposing this item publicly
+    restaurant_result = await db.execute(select(Restaurant).where(Restaurant.id == food_item.restaurant_id))
+    restaurant = restaurant_result.scalar_one_or_none()
+    if not restaurant or not restaurant.is_active or not restaurant.is_approved:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Food item not found")
+
     return food_item
 
 async def update_food_item(food_item_id :int , data: FoodItemUpdate, current_user : User , db: AsyncSession):

@@ -42,8 +42,19 @@ async def place_order(data : OrderCreate , current_user : User , db:AsyncSession
         )
     
     restaurant_id = list(restaurant_ids)[0]
+
+    # Verify the restaurant is actually approved and active before allowing orders
+    result = await db.execute(select(Restaurant).where(Restaurant.id == restaurant_id))
+    restaurant = result.scalar_one_or_none()
+
+    if not restaurant or not restaurant.is_active or not restaurant.is_approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This restaurant is not currently accepting orders"
+        )
+
     # calculate total 
-    total = sum(item.unit_price *item.quantity for item in cart_items)
+    total = sum(item.unit_price * item.quantity for item in cart_items)
     #create order
     order = Order(
         user_id = current_user.id,
