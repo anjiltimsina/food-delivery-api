@@ -20,7 +20,7 @@ async def list_food_items(restaurant_id : int , db:AsyncSession= Depends(get_db)
     return paginate(food_items , pagination)
 
 #yo pani public nai ho
-@router.get("{restaurant_id}/foods/{food_item_id}", response_model = FoodItemResponse)
+@router.get("/{restaurant_id}/foods/{food_item_id}", response_model = FoodItemResponse)
 async def get_food_item(
     restaurant_id : int,
     food_item_id : int,
